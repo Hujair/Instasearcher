@@ -1,0 +1,1372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Instagram Search Web App</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0b0d12;
+    --surface: #121620;
+    --card: #151a25;
+    --txt: #f3f5f9;
+    --muted: #8d96a8;
+    --accent: #9c7bff;
+    --accent-bright: #7251ef;
+    --wa: #48d597;
+    --danger: #ff6b78;
+    --line: rgba(179, 190, 215, .12);
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    min-height: 100vh;
+    margin: 0;
+    color: var(--txt);
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background:
+      radial-gradient(ellipse at 12% -10%, rgba(114, 81, 239, .18), transparent 34rem),
+      radial-gradient(ellipse at 95% 2%, rgba(52, 124, 208, .10), transparent 30rem),
+      var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
+  button, input, select { font: inherit; }
+  button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible, .file-upload:focus-within {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 20px max(24px, calc((100vw - 1440px) / 2));
+    background: rgba(11, 13, 18, .86);
+    border-bottom: 1px solid var(--line);
+    backdrop-filter: blur(20px);
+  }
+  .header-top, .past-searches, .search-bar { width: 100%; max-width: 1440px; margin-inline: auto; }
+  .header-top { display: flex; align-items: center; gap: 12px; }
+  header h1 { margin: 0; font-size: 21px; font-weight: 750; letter-spacing: -.045em; }
+  header h1::before {
+    content: "";
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin: 0 11px 1px 0;
+    border-radius: 4px;
+    background: linear-gradient(135deg, #c0aaff, #7755f4);
+    box-shadow: 0 0 20px rgba(156, 123, 255, .65);
+  }
+  .past-searches { display: flex; gap: 9px; flex-wrap: wrap; align-items: center; }
+  .past-searches > span { margin-right: 3px; color: var(--muted); font-size: 12px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
+  #past-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+  .past-item { display: inline-flex; align-items: center; gap: 3px; }
+  .past-btn {
+    padding: 6px 11px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: rgba(255,255,255,.035);
+    color: #c6ccda;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background .18s ease, border-color .18s ease, color .18s ease;
+  }
+  .past-btn:hover { border-color: rgba(156, 123, 255, .55); background: rgba(156, 123, 255, .13); color: #fff; }
+  .past-btn:disabled { opacity: .5; cursor: not-allowed; }
+  .past-delete {
+    width: 22px; height: 22px; padding: 0; border-radius: 50%;
+    border: 1px solid rgba(255, 116, 132, .35); background: rgba(255, 116, 132, .1);
+    color: #ff9aa6; cursor: pointer; font-size: 15px; line-height: 1;
+  }
+  .past-delete:hover { background: rgba(255, 116, 132, .25); color: #fff; }
+  .past-delete:disabled { opacity: .5; cursor: not-allowed; }
+
+  .search-bar {
+    display: flex;
+    align-items: end;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: linear-gradient(145deg, rgba(24, 29, 42, .94), rgba(17, 21, 31, .94));
+    box-shadow: 0 14px 40px rgba(0,0,0,.2);
+  }
+  .search-primary {
+    display: flex;
+    flex: 1 1 100%;
+    align-items: end;
+    gap: 10px;
+    min-width: 0;
+  }
+  .search-primary .field { flex: 1 1 auto; }
+  .search-settings { flex: 1 1 100%; min-width: 0; }
+  .search-settings summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: fit-content;
+    color: #b7a3ff;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 650;
+    list-style: none;
+  }
+  .search-settings summary::-webkit-details-marker { display: none; }
+  .search-settings summary::before { content: "+"; font-size: 16px; line-height: 1; }
+  .search-settings[open] summary::before { content: "−"; }
+  .search-settings summary:hover { color: #d4c8ff; }
+  .search-settings summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+  .search-settings-content { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; padding-top: 12px; }
+  .account-source {
+    display: flex;
+    flex: 1 1 540px;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 10px;
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid rgba(156, 123, 255, .18);
+    border-radius: 12px;
+    background: rgba(156, 123, 255, .045);
+  }
+  .account-source-heading { flex-basis: 100%; }
+  .account-source-heading h2 { margin: 0; font-size: 13px; font-weight: 700; }
+  .account-source-heading p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+  .account-source .field { flex: 1 1 145px; }
+  .account-source .field-file { flex: 1.3 1 200px; }
+  .search-options {
+    display: flex;
+    flex: 1 1 570px;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 10px;
+    min-width: 0;
+  }
+  .search-options .field { flex: 1 1 100px; }
+  .field { display: flex; min-width: 0; flex: 1 1 125px; flex-direction: column; gap: 6px; }
+  .field-label { color: #aab2c3; font-size: 11px; font-weight: 650; letter-spacing: .045em; }
+  .search-bar input[type="text"], .sidebar input[type="text"], .sidebar input[type="number"], .sidebar select {
+    width: 100%;
+    min-width: 105px;
+    min-height: 42px;
+    padding: 9px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #0d1119;
+    color: var(--txt);
+    transition: border-color .18s ease, box-shadow .18s ease;
+  }
+  .search-bar input::placeholder, .sidebar input::placeholder { color: #687184; }
+  .sidebar input:disabled, .sidebar select:disabled { color: #687184; background: #11141b; cursor: not-allowed; opacity: .65; }
+  .search-bar input:focus, .sidebar input:focus, .sidebar select:focus { border-color: rgba(156, 123, 255, .75); box-shadow: 0 0 0 3px rgba(156, 123, 255, .12); outline: none; }
+  .sidebar select { cursor: pointer; }
+  .file-control { position: relative; display: flex; gap: 6px; min-width: 0; }
+  .file-input { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; }
+  .file-upload {
+    display: flex;
+    min-width: 0;
+    min-height: 42px;
+    width: 100%;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    overflow: hidden;
+    border: 1px dashed rgba(156, 123, 255, .4);
+    border-radius: 10px;
+    background: rgba(156, 123, 255, .07);
+    color: #c6b7ff;
+    cursor: pointer;
+    font-size: 13px;
+    white-space: nowrap;
+    transition: background .18s ease, border-color .18s ease;
+  }
+  .file-upload:hover { border-color: var(--accent); background: rgba(156, 123, 255, .13); }
+  .file-input:focus-visible + .file-upload { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .file-upload svg { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
+  #file-label { overflow: hidden; text-overflow: ellipsis; }
+  .file-clear, .file-default {
+    flex: none;
+    padding: 0 9px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #0d1119;
+    color: #c6ccda;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .file-clear:hover, .file-default:hover { border-color: var(--accent); color: #fff; }
+  .file-default { min-height: 32px; align-self: flex-start; }
+  .file-control [hidden], .file-default[hidden] { display: none; }
+  .file-name { max-width: 120px; overflow: hidden; color: var(--txt); font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+  .btn-search, .btn-stop {
+    min-height: 42px;
+    padding: 9px 18px;
+    border: 0;
+    border-radius: 10px;
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform .18s ease, filter .18s ease, box-shadow .18s ease;
+  }
+  .btn-search { background: linear-gradient(135deg, #a487ff, #704fe8); box-shadow: 0 7px 18px rgba(114, 81, 239, .25); }
+  .btn-stop { display: none; background: linear-gradient(135deg, #ff8089, #e84f64); }
+  .btn-search:not(:disabled):hover, .btn-stop:hover { transform: translateY(-1px); filter: brightness(1.08); }
+  .btn-search:disabled, .btn-stop:disabled { opacity: .55; cursor: not-allowed; }
+
+  .status-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; max-width: 1442px; margin: 16px auto 0; padding: 0 16px; color: var(--muted); font-size: 12px; }
+  .status-bar span { padding: 5px 9px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255,255,255,.025); }
+  .status-bar #status-msg.active { border-color: rgba(72, 213, 151, .25); color: var(--wa); }
+  .settings-warning { margin: 0; color: #ffb871; font-size: 12px; }
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 14px;
+    max-width: 1442px;
+    margin: 24px auto 0;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: rgba(18, 22, 32, .8);
+  }
+  .filter-intro { flex: 1 1 180px; }
+  .filter-intro h2 { margin: 0; font-size: 15px; }
+  .filter-note { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+  .filter-field { display: flex; flex: 1 1 145px; flex-direction: column; gap: 7px; min-width: 0; }
+  .filter-field input[type="date"], .filter-field input[type="number"], .filter-field input[type="text"] {
+    width: 100%;
+    min-height: 38px;
+    padding: 8px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: #0d1119;
+    color: var(--txt);
+    font: inherit;
+  }
+  .filter-field input::placeholder { color: #687184; }
+  .filter-reset {
+    min-height: 38px;
+    padding: 8px 12px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: #0d1119;
+    color: var(--txt);
+    cursor: pointer;
+  }
+  .filter-reset:hover { border-color: var(--accent); }
+  .filter-note { flex-basis: 100%; }
+  .filter-error { flex-basis: 100%; margin: 0; color: #ff9a9a; font-size: 12px; }
+  .workspace { display: grid; grid-template-columns: minmax(260px, 310px) minmax(0, 1fr); gap: 20px; max-width: 1490px; margin: 0 auto; padding: 24px; align-items: start; }
+  .sidebar { display: flex; flex-direction: column; gap: 18px; min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(18, 22, 32, .8); }
+  .sidebar h2 { margin: 0; font-size: 15px; }
+  .sidebar .account-source, .sidebar .search-options { flex: auto; width: 100%; }
+  .sidebar .account-source .field, .sidebar .account-source .field-file { flex: 1 1 100%; }
+  .sidebar .search-options .field { flex: 1 1 100%; }
+  .sidebar .filters { width: 100%; margin: 0; padding: 18px 0 0; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: none; }
+  .sidebar .filter-intro, .sidebar .filter-field { flex: 1 1 100%; }
+  .sidebar .filter-reset { width: 100%; }
+  .deal-settings { display: flex; flex-direction: column; gap: 8px; padding-top: 18px; border-top: 1px solid var(--line); }
+  .deal-settings input { width: 100%; min-height: 38px; padding: 8px; border: 1px solid var(--line); border-radius: 9px; background: #0d1119; color: var(--txt); font: inherit; }
+  .deal-panel { display: flex; flex-direction: column; gap: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+  .deal-panel button { align-self: flex-start; }
+  .deal-result { display: flex; flex-direction: column; gap: 5px; font-size: 12px; line-height: 1.5; color: #d3d8e2; }
+  .deal-rating { align-self: flex-start; padding: 3px 8px; border-radius: 999px; background: rgba(156,123,255,.2); font-weight: 700; }
+  .deal-rating.great { color: #75e3b1; background: rgba(72,213,151,.14); }
+  .deal-rating.good { color: #b7caff; }
+  .deal-rating.bad { color: #ff9a9a; background: rgba(255,107,120,.12); }
+  .deal-sources { display: flex; flex-wrap: wrap; gap: 8px; }
+  .deal-sources a { color: #b7a3ff; overflow-wrap: anywhere; }
+  .deal-suggestions { width: 100%; height: 85px; border: 0; background: #fff; border-radius: 8px; }
+  .results-panel { min-width: 0; }
+  .results-panel .status-bar { margin: 0; padding: 0; }
+  .results-panel .grid { padding: 20px 0; }
+  .results-panel .empty { margin: 20px 0; }
+  #root { width: 100%; max-width: 1490px; margin: 0 auto; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 20px; align-items: start; padding: 28px 24px; }
+  .card {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: linear-gradient(160deg, rgba(23, 28, 40, .98), rgba(17, 21, 30, .98));
+    box-shadow: 0 12px 32px rgba(0,0,0,.18);
+    transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+  }
+  .card:hover { transform: translateY(-3px); border-color: rgba(156, 123, 255, .3); box-shadow: 0 18px 42px rgba(0,0,0,.3); }
+  .top-info { display: flex; flex-direction: column; border-bottom: 1px solid var(--line); }
+  .price-badge { padding: 13px 16px; background: rgba(72, 213, 151, .09); color: #75e3b1; font-size: 22px; font-weight: 800; text-align: center; letter-spacing: -.03em; }
+  .price-badge.no-price { background: rgba(255,255,255,.025); color: var(--muted); font-size: 13px; font-weight: 500; }
+  .wa-btn { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 11px; border-top: 1px solid var(--line); background: rgba(72, 213, 151, .045); color: var(--wa); text-decoration: none; font-size: 14px; font-weight: 650; transition: background .18s ease; }
+  .wa-btn:hover { background: rgba(72, 213, 151, .12); }
+  .wa-btn svg { width: 18px; height: 18px; fill: currentColor; }
+  .wa-missing { padding: 10px; border-top: 1px solid var(--line); background: rgba(255,255,255,.02); color: var(--muted); text-align: center; font-size: 12px; }
+  .media { position: relative; overflow: hidden; background: #090b10; }
+  .gallery-slide { aspect-ratio: 4 / 3; }
+  .gallery-slide[hidden] { display: none; }
+  .gallery-slide img, .gallery-slide video { display: block; width: 100%; height: 100%; object-fit: contain; }
+  .gallery-image-button { display: block; width: 100%; height: 100%; padding: 0; border: 0; background: transparent; cursor: zoom-in; }
+  .gallery-image-button:disabled { cursor: default; }
+  .gallery-image-button:focus-visible { outline: 2px solid #b7a3ff; outline-offset: -3px; }
+  .gallery-arrow {
+    position: absolute;
+    top: 50%;
+    z-index: 1;
+    display: grid;
+    width: 36px;
+    height: 36px;
+    place-items: center;
+    transform: translateY(-50%);
+    border: 1px solid rgba(255,255,255,.2);
+    border-radius: 50%;
+    background: rgba(11,13,18,.72);
+    color: #fff;
+    cursor: pointer;
+    font-size: 23px;
+    line-height: 1;
+    backdrop-filter: blur(8px);
+    transition: background .18s ease, transform .18s ease;
+  }
+  .gallery-arrow:hover { transform: translateY(-50%) scale(1.06); background: rgba(114,81,239,.9); }
+  .gallery-prev { left: 10px; }
+  .gallery-next { right: 10px; }
+  .gallery-count {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    padding: 5px 9px;
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: 999px;
+    background: rgba(11,13,18,.72);
+    color: #fff;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    backdrop-filter: blur(8px);
+  }
+  .no-media { padding: 28px 24px; color: #eab27b; text-align: center; font-size: 13px; }
+  body.gallery-open { overflow: hidden; }
+  .fullscreen-gallery {
+    position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none;
+    margin: 0; padding: 0; border: 0; background: rgba(8, 10, 15, .97); color: #fff;
+  }
+  .fullscreen-gallery::backdrop { background: rgba(0, 0, 0, .9); }
+  .fullscreen-gallery[open] { display: flex; flex-direction: column; }
+  .fullscreen-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 18px; }
+  .fullscreen-info { min-width: 0; color: #d3d8e2; font-size: 13px; }
+  .fullscreen-close, .fullscreen-arrow {
+    flex: none; display: grid; place-items: center; width: 44px; height: 44px;
+    border: 1px solid rgba(255,255,255,.2); border-radius: 50%; background: rgba(255,255,255,.08);
+    color: #fff; cursor: pointer; font-size: 26px; line-height: 1;
+  }
+  .fullscreen-close:hover, .fullscreen-arrow:hover { background: rgba(156,123,255,.35); }
+  .fullscreen-arrow:disabled { opacity: .35; cursor: default; }
+  .fullscreen-content { flex: 1; min-height: 0; display: flex; align-items: center; gap: 12px; padding: 0 16px 16px; }
+  .fullscreen-stage { flex: 1; min-width: 0; height: 100%; display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); place-items: center; }
+  .fullscreen-stage img, .fullscreen-stage video { width: 100%; height: 100%; object-fit: contain; }
+  @media (max-width: 700px) {
+    .fullscreen-content { gap: 5px; padding: 0 6px 12px; }
+    .fullscreen-arrow { width: 36px; height: 36px; }
+  }
+  .meta { display: flex; flex-direction: column; gap: 7px; padding: 15px 16px 17px; }
+  .user { color: #b7a3ff; font-weight: 700; }
+  .date { color: var(--muted); font-size: 12px; }
+  .caption { color: #d3d8e2; font-size: 13px; line-height: 1.55; white-space: pre-wrap; }
+  .link { width: fit-content; margin-top: 5px; color: #b7a3ff; font-size: 13px; font-weight: 650; text-decoration: none; }
+  .link:hover { color: #d4c8ff; text-decoration: underline; }
+  .empty { margin: 28px 24px; padding: 64px 24px; border: 1px dashed var(--line); border-radius: var(--radius); background: rgba(18, 22, 32, .55); color: var(--muted); text-align: center; }
+  @media (max-width: 700px) {
+    header { position: relative; padding: 18px 16px; }
+    .search-bar { gap: 8px; padding: 10px; }
+    .account-source, .search-options { flex-basis: 100%; }
+    .account-source .field, .account-source .field-file, .search-options .field { flex: 1 1 calc(50% - 8px); }
+    .search-primary .btn-search, .search-primary .btn-stop { flex: 0 0 auto; }
+    .filters { margin: 18px 16px 0; }
+    .grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 14px; padding: 18px 16px; }
+    .empty { margin: 18px 16px; padding: 48px 20px; }
+  }
+  @media (max-width: 900px) {
+    .workspace { grid-template-columns: minmax(0, 1fr); padding: 16px; }
+    .sidebar .account-source .field, .sidebar .account-source .field-file, .sidebar .search-options .field, .sidebar .filter-field { flex: 1 1 calc(50% - 10px); }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="header-top">
+    <h1>Insta Searcher</h1>
+  </div>
+  
+  <div class="past-searches" id="past-searches-container">
+    <span>Past Searches:</span>
+    <div id="past-buttons"></div>
+  </div>
+
+  <div class="search-bar">
+    <div class="search-primary">
+      <div class="field field-keywords">
+        <label class="field-label" for="inp-keyword">Keywords</label>
+        <input type="text" id="inp-keyword" placeholder="e.g. ps5 controller" value="ps5 controller">
+      </div>
+      <button class="btn-search" id="btn-search" onclick="startSearch()" disabled>Checking...</button>
+      <button class="btn-stop" id="btn-stop" onclick="stopSearch()">Stop</button>
+    </div>
+  </div>
+  <p class="settings-warning" id="settings-warning" role="status" hidden></p>
+</header>
+
+<div class="workspace">
+  <aside class="sidebar" aria-label="Search options and filters">
+    <h2>Search options</h2>
+    <div class="account-source" role="group" aria-labelledby="account-source-title">
+      <div class="account-source-heading">
+        <h2 id="account-source-title">Accounts to search</h2>
+        <p>Use an accounts list, or clear it to search a username and its scope.</p>
+      </div>
+      <div class="field field-file">
+        <label class="field-label" for="inp-file">Accounts list</label>
+        <div class="file-control">
+          <input class="file-input" type="file" id="inp-file" accept=".txt" onchange="selectUploadedFile(this)" disabled>
+          <label class="file-upload" for="inp-file">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14v5h14v-5"/></svg>
+            <span id="file-label">Upload .txt list</span>
+          </label>
+          <button class="file-clear" id="clear-file" type="button" onclick="clearAccountFile()" aria-label="Clear account list" hidden>Clear</button>
+        </div>
+        <button class="file-default" id="use-default-file" type="button" onclick="selectDefaultFile()" hidden>Use accounts.txt</button>
+      </div>
+      <div class="field field-user">
+        <label class="field-label" for="inp-user">Username</label>
+        <input type="text" id="inp-user" placeholder="Enter username" value="electronics_bahrain" disabled>
+      </div>
+      <div class="field">
+        <label class="field-label" for="inp-source">Search scope</label>
+        <select id="inp-source">
+          <option value="single">Individual User</option>
+          <option value="followers">Followers</option>
+          <option value="followees">Following</option>
+          <option value="account-list" hidden disabled>Individual accounts</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="search-options">
+      <div class="field">
+        <label class="field-label" for="inp-limit">User limit</label>
+        <input type="number" id="inp-limit" value="10" title="Max users to check if searching followers">
+      </div>
+      <div class="field">
+        <label class="field-label" for="inp-max">Posts per user</label>
+        <input type="number" id="inp-max" value="30" title="Max posts per user">
+      </div>
+      <div class="field">
+        <label class="field-label" for="inp-threads">Threads</label>
+        <input type="number" id="inp-threads" value="3" min="1" max="10" title="Parallel search threads (1-10)">
+      </div>
+    </div>
+    <section class="deal-settings" aria-label="Deal analysis">
+      <h2>Deal analysis</h2>
+      <label class="field-label" for="gemini-key">Gemini API key</label>
+      <input id="gemini-key" type="password" autocomplete="off" spellcheck="false" placeholder="Enter your Gemini API key">
+      <p class="filter-note">The key is saved unencrypted in this browser on this device. Clear the field to remove it. Analyze sends the post description to Google; Google Search and Gemini charges may apply. Common contact details are removed, but review descriptions for sensitive information.</p>
+      <p class="settings-warning" id="gemini-key-warning" role="status" hidden></p>
+    </section>
+    <section class="filters" aria-label="Filter results">
+  <div class="filter-intro">
+    <h2>Filter results</h2>
+  </div>
+  <div class="filter-field">
+    <label class="field-label" for="filter-text">Text in caption or username</label>
+    <input type="text" id="filter-text" placeholder="Filter posts">
+  </div>
+  <div class="filter-field">
+    <label class="field-label" for="filter-exclude">Exclude text in caption or username</label>
+    <input type="text" id="filter-exclude" placeholder="Words or phrases, comma-separated">
+  </div>
+  <div class="filter-field">
+    <label class="field-label" for="filter-date-from">From date (UTC)</label>
+    <input type="date" id="filter-date-from">
+  </div>
+  <div class="filter-field">
+    <label class="field-label" for="filter-date-to">To date (UTC)</label>
+    <input type="date" id="filter-date-to">
+  </div>
+  <div class="filter-field">
+    <label class="field-label" for="filter-price-min">Minimum price (BD)</label>
+    <input type="number" id="filter-price-min" min="0" step="any" placeholder="Any" aria-describedby="price-filter-error">
+  </div>
+  <div class="filter-field">
+    <label class="field-label" for="filter-price-max">Maximum price (BD)</label>
+    <input type="number" id="filter-price-max" min="0" step="any" placeholder="Any" aria-describedby="price-filter-error">
+  </div>
+  <button class="filter-reset" id="filter-reset" type="button">Reset filters</button>
+  <p class="filter-error" id="price-filter-error" role="status" hidden></p>
+  <p class="filter-note">Filters apply to displayed results. Posts without a recognized price or date are excluded when that filter is active.</p>
+    </section>
+  </aside>
+
+  <main class="results-panel">
+    <div class="status-bar">
+      <span id="status-msg">Idle</span>
+      <span id="status-count">0 posts found</span>
+      <span id="filter-count" aria-live="polite">Showing 0 of 0 posts</span>
+    </div>
+    <div id="root"><div class="empty">Enter a search above or upload a file to start.</div></div>
+  </main>
+</div>
+
+<dialog id="fullscreen-gallery" class="fullscreen-gallery" aria-label="Fullscreen results gallery">
+  <div class="fullscreen-header">
+    <div id="fullscreen-info" class="fullscreen-info" aria-live="polite"></div>
+    <button id="fullscreen-close" class="fullscreen-close" type="button" aria-label="Close gallery">&times;</button>
+  </div>
+  <div class="fullscreen-content">
+    <button id="fullscreen-prev" class="fullscreen-arrow" type="button" aria-label="Previous media">&#8249;</button>
+    <div id="fullscreen-stage" class="fullscreen-stage"></div>
+    <button id="fullscreen-next" class="fullscreen-arrow" type="button" aria-label="Next media">&#8250;</button>
+  </div>
+</dialog>
+
+<script>
+  let allResults = [];
+  let pollInterval = null;
+  let searchRunning = false;
+  let statusKnown = false;
+  let hasLoadedResults = false;
+  let accountSelectionReady = false;
+  let defaultAccountsAvailable = false;
+  let useDefaultFile = false;
+  let uploadedFile = null;
+  let savedScope = "single";
+  let settingsReady = false;
+  let settingsSaveQueue = Promise.resolve();
+  let minimumPrice = null;
+  let maximumPrice = null;
+
+  const btnSearch = document.getElementById("btn-search");
+  const btnStop = document.getElementById("btn-stop");
+  const statusMsg = document.getElementById("status-msg");
+  const statusCount = document.getElementById("status-count");
+  const root = document.getElementById("root");
+  const pastButtons = document.getElementById("past-buttons");
+  const fileInput = document.getElementById("inp-file");
+  const fileLabel = document.getElementById("file-label");
+  const usernameInput = document.getElementById("inp-user");
+  const scopeInput = document.getElementById("inp-source");
+  const clearFileButton = document.getElementById("clear-file");
+  const defaultFileButton = document.getElementById("use-default-file");
+  const settingsWarning = document.getElementById("settings-warning");
+  const dateFrom = document.getElementById("filter-date-from");
+  const dateTo = document.getElementById("filter-date-to");
+  const filterText = document.getElementById("filter-text");
+  const filterExclude = document.getElementById("filter-exclude");
+  const priceMin = document.getElementById("filter-price-min");
+  const priceMax = document.getElementById("filter-price-max");
+  const priceFilterError = document.getElementById("price-filter-error");
+  const filterCount = document.getElementById("filter-count");
+  const geminiKey = document.getElementById("gemini-key");
+  const geminiKeyWarning = document.getElementById("gemini-key-warning");
+  const dealAnalyses = new Map();
+  let previousSessionKey = null;
+  try {
+    previousSessionKey = sessionStorage.getItem("gemini-api-key");
+  } catch (error) {
+    console.warn("Could not read the previous session key", error);
+  }
+  try {
+    const savedKey = localStorage.getItem("gemini-api-key");
+    geminiKey.value = savedKey === null ? (previousSessionKey || "") : savedKey;
+    if (savedKey === null && previousSessionKey) {
+      localStorage.setItem("gemini-api-key", previousSessionKey);
+    }
+    if (previousSessionKey !== null) {
+      try {
+        sessionStorage.removeItem("gemini-api-key");
+      } catch (error) {
+        console.warn("Could not clear the previous session key", error);
+      }
+    }
+  } catch (error) {
+    geminiKey.value = previousSessionKey || "";
+    geminiKeyWarning.textContent = "Could not access saved key. The key may be lost on refresh.";
+    geminiKeyWarning.hidden = false;
+  }
+  geminiKey.addEventListener("input", () => {
+    try {
+      if (geminiKey.value) localStorage.setItem("gemini-api-key", geminiKey.value);
+      else localStorage.removeItem("gemini-api-key");
+      geminiKeyWarning.hidden = true;
+    } catch (error) {
+      geminiKeyWarning.textContent = "Could not save this key in the browser. The previous saved key may remain; check browser storage.";
+      geminiKeyWarning.hidden = false;
+    }
+    try {
+      sessionStorage.removeItem("gemini-api-key");
+    } catch (error) {
+      console.warn("Could not clear the previous session key", error);
+    }
+  });
+  const fullscreenGallery = document.getElementById("fullscreen-gallery");
+  const fullscreenInfo = document.getElementById("fullscreen-info");
+  const fullscreenStage = document.getElementById("fullscreen-stage");
+  const fullscreenPrev = document.getElementById("fullscreen-prev");
+  const fullscreenNext = document.getElementById("fullscreen-next");
+  let fullscreenItems = [];
+  let fullscreenIndex = 0;
+  const settingIds = ["inp-user", "inp-keyword", "inp-source", "inp-limit", "inp-max", "inp-threads", "filter-text", "filter-exclude", "filter-date-from", "filter-date-to", "filter-price-min", "filter-price-max"];
+  const settingFields = settingIds.map(id => document.getElementById(id));
+  settingFields.forEach(field => { field.disabled = true; });
+
+  const settingsDatabase = new Promise((resolve, reject) => {
+    const request = indexedDB.open("insta-searcher-settings", 1);
+    request.onupgradeneeded = () => request.result.createObjectStore("settings");
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+    request.onblocked = () => reject(new Error("Settings database is blocked"));
+  });
+
+  function settingsTransaction(mode, action) {
+    return settingsDatabase.then(database => new Promise((resolve, reject) => {
+      const transaction = database.transaction("settings", mode);
+      const request = action(transaction.objectStore("settings"));
+      transaction.oncomplete = () => resolve(request.result);
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error || new Error("Settings transaction aborted"));
+    }));
+  }
+
+  function saveSettings() {
+    if (!settingsReady) return;
+    const fields = Object.fromEntries(settingFields.map(field => [
+      field.id, field === scopeInput && (useDefaultFile || uploadedFile) ? savedScope : field.value
+    ]));
+    const settings = { fields, useDefaultFile, uploadedFile, minimumPrice, maximumPrice };
+    settingsSaveQueue = settingsSaveQueue.catch(() => {}).then(() =>
+      settingsTransaction("readwrite", store => store.put(settings, "search"))
+    );
+    settingsSaveQueue.then(() => {
+      settingsWarning.hidden = true;
+    }, error => {
+      console.error("Could not save search settings", error);
+      settingsWarning.textContent = "Could not save settings in this browser. Changes may be lost on refresh.";
+      settingsWarning.hidden = false;
+    });
+  }
+
+  async function restoreSettings() {
+    try {
+      const settings = await settingsTransaction("readonly", store => store.get("search"));
+      if (settings) {
+        settingFields.forEach(field => {
+          if (typeof settings.fields?.[field.id] === "string") field.value = settings.fields[field.id];
+        });
+        useDefaultFile = settings.useDefaultFile === true;
+        if (settings.uploadedFile instanceof File) uploadedFile = settings.uploadedFile;
+        if (typeof settings.minimumPrice === "number" && Number.isFinite(settings.minimumPrice) && settings.minimumPrice >= 0) minimumPrice = settings.minimumPrice;
+        if (typeof settings.maximumPrice === "number" && Number.isFinite(settings.maximumPrice) && settings.maximumPrice >= 0) maximumPrice = settings.maximumPrice;
+        priceMin.value = minimumPrice === null ? "" : minimumPrice;
+        priceMax.value = maximumPrice === null ? "" : maximumPrice;
+      } else {
+        useDefaultFile = defaultAccountsAvailable;
+      }
+    } catch (error) {
+      console.error("Could not restore search settings", error);
+      settingsWarning.textContent = "Could not restore settings in this browser.";
+      settingsWarning.hidden = false;
+      useDefaultFile = defaultAccountsAvailable;
+    } finally {
+      settingFields.forEach(field => { field.disabled = false; });
+      savedScope = scopeInput.value;
+      settingsReady = true;
+      renderAll(allResults);
+    }
+  }
+
+  settingFields.filter(field => field !== priceMin && field !== priceMax).forEach(field => field.addEventListener("input", saveSettings));
+  scopeInput.addEventListener("change", () => {
+    savedScope = scopeInput.value;
+    saveSettings();
+  });
+  [filterText, filterExclude, dateFrom, dateTo].forEach(field => field.addEventListener("input", () => {
+    if (allResults.length) renderAll(allResults);
+  }));
+  [priceMin, priceMax].forEach(field => field.addEventListener("input", () => {
+    if (priceMin.validity.valid && priceMax.validity.valid) {
+      minimumPrice = priceMin.value === "" ? null : Number(priceMin.value);
+      maximumPrice = priceMax.value === "" ? null : Number(priceMax.value);
+      saveSettings();
+    }
+    renderAll(allResults);
+  }));
+  document.getElementById("filter-reset").addEventListener("click", () => {
+    filterText.value = "";
+    filterExclude.value = "";
+    dateFrom.value = "";
+    dateTo.value = "";
+    minimumPrice = null;
+    maximumPrice = null;
+    priceMin.value = "";
+    priceMax.value = "";
+    renderAll(allResults);
+    saveSettings();
+  });
+
+  function updateAccountSelection() {
+    const uploaded = uploadedFile !== null;
+    const selected = useDefaultFile || uploaded;
+    usernameInput.disabled = !accountSelectionReady || selected;
+    scopeInput.disabled = !accountSelectionReady || selected;
+    scopeInput.querySelector('option[value="account-list"]').hidden = !selected;
+    scopeInput.value = selected ? "account-list" : savedScope;
+    fileInput.disabled = !accountSelectionReady;
+    fileLabel.textContent = uploaded ? uploadedFile.name : useDefaultFile ? "accounts.txt" : "Upload .txt list";
+    fileLabel.style.color = selected ? "#7ee2a8" : "";
+    clearFileButton.hidden = !selected;
+    defaultFileButton.hidden = !accountSelectionReady || !defaultAccountsAvailable || useDefaultFile;
+  }
+
+  function selectUploadedFile(input) {
+    if (input.files.length > 0) {
+      uploadedFile = input.files[0];
+      useDefaultFile = false;
+      saveSettings();
+    }
+    updateAccountSelection();
+  }
+
+  function clearAccountFile() {
+    useDefaultFile = false;
+    uploadedFile = null;
+    fileInput.value = "";
+    updateAccountSelection();
+    saveSettings();
+  }
+
+  function selectDefaultFile() {
+    fileInput.value = "";
+    uploadedFile = null;
+    useDefaultFile = true;
+    updateAccountSelection();
+    saveSettings();
+  }
+
+  async function loadDefaultAccounts() {
+    try {
+      const res = await fetch('/api/default_accounts');
+      if (!res.ok) throw new Error(`Account list request failed: ${res.status}`);
+      const data = await res.json();
+      defaultAccountsAvailable = data.available;
+    } catch (e) {
+      console.error("Could not check the default account list", e);
+      alert("Could not load the default account list. Enter a username or upload a file.");
+    } finally {
+      await restoreSettings();
+      accountSelectionReady = true;
+      updateAccountSelection();
+      if (statusKnown && !searchRunning) btnSearch.disabled = false;
+    }
+  }
+
+  async function loadPastSearches() {
+    try {
+      const res = await fetch('/api/past_searches?details=1');
+      if (!res.ok) throw new Error(`History request failed: ${res.status}`);
+      const searches = await res.json();
+      
+      pastButtons.innerHTML = "";
+      if (searches.length === 0) {
+        pastButtons.innerHTML = '<span style="font-size:12px;color:#555">None yet</span>';
+        return;
+      }
+      
+      searches.forEach(({folder, label}) => {
+        const item = document.createElement("div");
+        item.className = "past-item";
+        const btn = document.createElement("button");
+        btn.className = "past-btn";
+        btn.textContent = label || "(empty search)";
+        btn.disabled = !statusKnown || searchRunning;
+        btn.onclick = () => loadPastSearch(label, folder);
+        const remove = document.createElement("button");
+        remove.className = "past-delete";
+        remove.type = "button";
+        remove.textContent = "×";
+        remove.setAttribute("aria-label", `Delete saved search ${label || "(empty search)"}`);
+        remove.title = "Delete saved search";
+        remove.disabled = !statusKnown || searchRunning;
+        remove.onclick = () => deletePastSearch(folder, label, remove);
+        item.append(btn, remove);
+        pastButtons.appendChild(item);
+      });
+    } catch(e) {
+      console.error(e);
+    }
+  }
+
+  async function deletePastSearch(folder, label, button) {
+    if (!statusKnown || searchRunning) {
+      alert(searchRunning ? "Stop the current search before deleting history." : "Search status is unavailable. Please try again.");
+      return;
+    }
+    if (!confirm(`Permanently delete the saved results for '${label || "(empty search)"}'?\nThis cannot be undone.`)) return;
+    button.disabled = true;
+    try {
+      const res = await fetch('/api/past_searches/delete', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({folder})
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not delete the saved search.");
+      if (data.cleared) {
+        allResults = [];
+        hasLoadedResults = true;
+        renderAll(allResults);
+        root.innerHTML = '<div class="empty">Saved search deleted.</div>';
+        statusMsg.textContent = "Deleted saved search.";
+        statusCount.textContent = "0 posts";
+      }
+      await loadPastSearches();
+    } catch (e) {
+      alert(e.message || "Could not delete the saved search.");
+      button.disabled = !statusKnown || searchRunning;
+    }
+  }
+
+  async function loadPastSearch(keyword, folder) {
+    if (!statusKnown || searchRunning) {
+      alert(searchRunning ? "Stop the current search before loading a past search." : "Search status is unavailable. Please try again.");
+      return;
+    }
+    root.innerHTML = '<div class="empty">Loading past results...</div>';
+    statusMsg.textContent = "Loading...";
+    
+    try {
+      const encodedKw = encodeURIComponent(folder);
+      const res = await fetch(`/api/load_search/${encodedKw}?folder=${encodeURIComponent(folder)}`);
+      if (!res.ok) throw new Error("Not found");
+      
+      const resultsRes = await fetch('/api/results');
+      allResults = await resultsRes.json();
+      
+      renderAll(allResults);
+      if (!allResults.length) root.innerHTML = '<div class="empty">No posts found in this past search.</div>';
+      statusMsg.textContent = `Loaded past results for '${keyword}'`;
+      statusCount.textContent = `${allResults.length} posts`;
+      
+      document.getElementById("inp-keyword").value = keyword;
+      saveSettings();
+      
+    } catch(e) {
+      alert("Error loading past search.");
+    }
+  }
+
+  function extractPrice(caption) {
+    if (!caption) return null;
+    const regex = /(\d+(?:\.\d+)?)\s*(?:دينار|د\.?\s*ب\.?|BD)|(?:دينار|د\.?\s*ب\.?|BD)\s*(\d+(?:\.\d+)?)/i;
+    const match = caption.match(regex);
+    if (match) return isNaN(parseFloat(match[1] || match[2])) ? null : parseFloat(match[1] || match[2]);
+    return null;
+  }
+
+  function extractPhone(caption) {
+    if (!caption) return null;
+    const regex = /\b(\d{8})\b/;
+    const match = caption.match(regex);
+    return match ? match[1] : null;
+  }
+
+  function esc(s) {
+    const d = document.createElement("div");
+    d.textContent = s ?? "";
+    return d.innerHTML;
+  }
+
+  async function startSearch() {
+    const formData = new FormData();
+    formData.append("username", document.getElementById("inp-user").value);
+    formData.append("keyword", document.getElementById("inp-keyword").value);
+    formData.append("source", useDefaultFile || uploadedFile ? "single" : scopeInput.value);
+    formData.append("limit", document.getElementById("inp-limit").value);
+    formData.append("max_posts", document.getElementById("inp-max").value);
+    formData.append("threads", document.getElementById("inp-threads").value); // NEW
+    formData.append("use_default_file", useDefaultFile ? "true" : "false");
+    
+    if (uploadedFile) {
+      formData.append("file", uploadedFile);
+    }
+
+    setRunningUI(true);
+    
+    root.innerHTML = '<div class="empty">Search started. Waiting for results...</div>';
+    allResults = [];
+    hasLoadedResults = false;
+    filterCount.textContent = "Showing 0 of 0 posts";
+
+    try {
+      const res = await fetch('/api/start', {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (res.ok) {
+        pollServer();
+      } else {
+        const error = res.headers.get("content-type")?.includes("application/json") ? await res.json() : null;
+        alert(error?.error || `Failed to start search (HTTP ${res.status}).`);
+        pollServer();
+      }
+    } catch (e) {
+      alert("Error connecting to server. Is app.py running?");
+      pollServer();
+    }
+  }
+
+  async function stopSearch() {
+    btnStop.textContent = "Stopping...";
+    btnStop.disabled = true;
+    try {
+      const res = await fetch('/api/stop', { method: 'POST' });
+      if (!res.ok) throw new Error(`Stop request failed: ${res.status}`);
+    } catch (e) {
+      console.error("Failed to send stop signal", e);
+      alert("Failed to stop the search. Please try again.");
+      btnStop.textContent = "Stop";
+      btnStop.disabled = false;
+    }
+  }
+
+  function setRunningUI(running) {
+    searchRunning = running;
+    btnSearch.disabled = running || !accountSelectionReady;
+    btnSearch.textContent = running ? "Searching..." : "Search";
+    btnStop.style.display = running ? "block" : "none";
+    pastButtons.querySelectorAll("button").forEach(button => { button.disabled = running; });
+  }
+
+  function resetUI() {
+    setRunningUI(false);
+    btnStop.textContent = "Stop";
+    btnStop.disabled = false;
+  }
+
+  async function pollServer() {
+    clearTimeout(pollInterval);
+    let retry = false;
+    try {
+      const statusRes = await fetch('/api/status');
+      if (!statusRes.ok) throw new Error(`Status request failed: ${statusRes.status}`);
+      const statusData = await statusRes.json();
+      statusKnown = true;
+      const wasRunning = searchRunning;
+      if (statusData.running) {
+        setRunningUI(true);
+      } else {
+        resetUI();
+        if (wasRunning) {
+          loadPastSearches();
+        }
+      }
+
+      statusMsg.textContent = statusData.message;
+      statusMsg.className = statusData.running ? "active" : "";
+      statusCount.textContent = `${statusData.found} posts found`;
+
+      const resultsRes = await fetch('/api/results');
+      if (!resultsRes.ok) throw new Error(`Results request failed: ${resultsRes.status}`);
+      const resultsData = await resultsRes.json();
+      
+      if (!hasLoadedResults || resultsData.length !== allResults.length) {
+        allResults = resultsData;
+        hasLoadedResults = true;
+        renderAll(allResults);
+      }
+
+      if (allResults.length === 0) {
+        if (statusData.running) {
+          root.innerHTML = '<div class="empty">Search started. Waiting for results...</div>';
+        } else if (wasRunning || statusData.message !== "Idle") {
+          root.innerHTML = '<div class="empty">Search finished, but no matches found.</div>';
+        }
+      }
+      retry = statusData.running;
+    } catch (e) {
+      console.error("Polling error", e);
+      statusMsg.textContent = "Connection lost. Retrying...";
+      btnSearch.disabled = true;
+      statusKnown = false;
+      pastButtons.querySelectorAll("button").forEach(button => { button.disabled = true; });
+      retry = true;
+    } finally {
+      if (retry) pollInterval = setTimeout(pollServer, 2000);
+    }
+  }
+
+  function showFullscreenMedia(index) {
+    fullscreenIndex = (index + fullscreenItems.length) % fullscreenItems.length;
+    const item = fullscreenItems[fullscreenIndex];
+    const previousVideo = fullscreenStage.querySelector("video");
+    if (previousVideo) previousVideo.pause();
+    fullscreenStage.replaceChildren();
+    fullscreenInfo.textContent = `@${item.username || "unknown"} \u00b7 ${fullscreenIndex + 1} / ${fullscreenItems.length}`;
+    fullscreenPrev.disabled = fullscreenNext.disabled = fullscreenItems.length < 2;
+    const video = /\.(mp4|mov)$/i.test(item.src);
+    const element = document.createElement(video ? "video" : "img");
+    if (video) {
+      element.controls = true;
+      element.preload = "metadata";
+    } else {
+      element.alt = `Post image from @${item.username || "unknown"}`;
+    }
+    element.onerror = () => {
+      const error = document.createElement("div");
+      error.className = "no-media";
+      error.textContent = video ? "Video could not be loaded." : "Image could not be loaded.";
+      element.replaceWith(error);
+    };
+    element.src = item.src;
+    fullscreenStage.appendChild(element);
+  }
+
+  function openFullscreenGallery(items, index) {
+    fullscreenItems = items;
+    showFullscreenMedia(index);
+    fullscreenGallery.showModal();
+    document.body.classList.add("gallery-open");
+    document.getElementById("fullscreen-close").focus();
+  }
+
+  document.getElementById("fullscreen-close").addEventListener("click", () => fullscreenGallery.close());
+  fullscreenPrev.addEventListener("click", () => showFullscreenMedia(fullscreenIndex - 1));
+  fullscreenNext.addEventListener("click", () => showFullscreenMedia(fullscreenIndex + 1));
+  fullscreenGallery.addEventListener("keydown", event => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      fullscreenGallery.close();
+      return;
+    }
+    if (event.target.tagName === "VIDEO") return;
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      event.preventDefault();
+      showFullscreenMedia(fullscreenIndex + (event.key === "ArrowLeft" ? -1 : 1));
+    }
+  });
+  fullscreenGallery.addEventListener("close", () => {
+    const video = fullscreenStage.querySelector("video");
+    if (video) video.pause();
+    fullscreenStage.replaceChildren();
+    fullscreenItems = [];
+    document.body.classList.remove("gallery-open");
+  });
+
+  function dealKey(result) {
+    return JSON.stringify([result.shortcode, result.date, result.username, result.caption]);
+  }
+
+  function redactedDescription(caption) {
+    return caption
+      .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[email removed]")
+      .replace(/(^|[\s(])@[\w.]+/g, "$1[account removed]")
+      .replace(/(^|[^\d])(?:\+?973[\s-]*)?\d{8}(?!\d)/g, "$1[phone removed]");
+  }
+
+  function updateDealPanels(result) {
+    const key = dealKey(result);
+    root.querySelectorAll(".deal-panel").forEach(panel => {
+      if (panel.dataset.dealKey === key) panel.replaceWith(buildDealPanel(result));
+    });
+  }
+
+  async function analyzeDeal(result) {
+    const key = dealKey(result);
+    if (!geminiKey.value.trim()) {
+      dealAnalyses.set(key, {error: "Enter a Gemini API key in Deal analysis first."});
+      updateDealPanels(result);
+      geminiKey.focus();
+      return;
+    }
+    dealAnalyses.set(key, {loading: true});
+    updateDealPanels(result);
+    try {
+      const response = await fetch('/api/analyze_deal', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-Gemini-Key': geminiKey.value.trim()},
+        body: JSON.stringify({caption: redactedDescription(result.caption || "")})
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Deal analysis failed.");
+      dealAnalyses.set(key, {data});
+    } catch (error) {
+      dealAnalyses.set(key, {error: error.message || "Deal analysis failed. Try again."});
+    }
+    updateDealPanels(result);
+  }
+
+  function buildDealPanel(result) {
+    const panel = document.createElement("section");
+    panel.className = "deal-panel";
+    panel.dataset.dealKey = dealKey(result);
+    panel.setAttribute("aria-label", "Deal analysis");
+    const state = dealAnalyses.get(dealKey(result));
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "filter-reset";
+    button.textContent = state?.loading ? "Analyzing..." : state?.data ? "Analyze again" : "Analyze deal";
+    button.disabled = !!state?.loading || !result.caption?.trim();
+    button.addEventListener("click", () => analyzeDeal(result));
+    panel.appendChild(button);
+    const output = document.createElement("div");
+    output.className = "deal-result";
+    output.setAttribute("aria-live", "polite");
+    if (state?.error) {
+      output.textContent = state.error;
+    } else if (state?.data) {
+      const {analysis, sources, suggestions} = state.data;
+      const rating = document.createElement("span");
+      rating.className = `deal-rating ${analysis.rating}`;
+      rating.textContent = analysis.rating === "unknown" ? "Not enough information" : `${analysis.rating[0].toUpperCase()}${analysis.rating.slice(1)} deal`;
+      output.appendChild(rating);
+      for (const [label, value] of [["Model", analysis.model], ["Asking price", analysis.asking_price], ["Comparable price", analysis.market_price], ["Assessment", analysis.explanation]]) {
+        const line = document.createElement("div");
+        line.textContent = `${label}: ${value}`;
+        output.appendChild(line);
+      }
+      if (sources.length) {
+        const links = document.createElement("div");
+        links.className = "deal-sources";
+        sources.forEach((source, index) => {
+          const link = document.createElement("a");
+          link.href = source.url;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          link.textContent = source.title || `Source ${index + 1}`;
+          links.appendChild(link);
+        });
+        output.appendChild(links);
+      }
+      if (suggestions) {
+        const frame = document.createElement("iframe");
+        frame.className = "deal-suggestions";
+        frame.title = "Google Search suggestions";
+        frame.setAttribute("sandbox", "allow-popups allow-popups-to-escape-sandbox");
+        frame.srcdoc = suggestions;
+        output.appendChild(frame);
+      }
+    }
+    panel.appendChild(output);
+    return panel;
+  }
+
+  function buildCard(r, galleryItems, galleryOffset) {
+    const card = document.createElement("div");
+    card.className = "card";
+
+    const topInfo = document.createElement("div");
+    topInfo.className = "top-info";
+
+    const priceDiv = document.createElement("div");
+    if (r.price !== null) {
+      priceDiv.className = "price-badge";
+      priceDiv.textContent = `Price: ${r.price} BD`;
+    } else {
+      priceDiv.className = "price-badge no-price";
+      priceDiv.textContent = "Price not specified";
+    }
+    topInfo.appendChild(priceDiv);
+
+    if (r.phone) {
+      let waNum = r.phone.startsWith("973") ? r.phone : "973" + r.phone;
+      const waLink = document.createElement("a");
+      waLink.className = "wa-btn";
+      waLink.href = `https://wa.me/${waNum}`;
+      waLink.target = "_blank";
+      const waIcon = `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16.05 0C7.2 0 .05 7.15.05 16c0 2.82.73 5.47 2.02 7.78L.05 32l8.43-2.2C10.75 31.08 13.32 32 16.05 32c8.85 0 16-7.15 16-16s-7.15-16-16-16zm0 29.3c-2.5 0-4.86-.7-6.88-1.92l-.5-.3-5.1 1.34 1.35-4.97-.33-.5c-1.32-2.1-2.06-4.56-2.06-7.16 0-7.4 6.03-13.43 13.44-13.43 7.4 0 13.43 6.03 13.43 13.44 0 7.4-6.03 13.43-13.43 13.43zm7.35-10.06c-.4-.2-2.36-1.17-2.73-1.3-.36-.13-.63-.2-.9.2-.26.4-1.02 1.3-1.25 1.57-.23.26-.46.3-.86.1-1.05-.53-2.3-1.5-3.2-2.6-.7-.8-1.18-1.67-1.32-1.94-.13-.27-.02-.42.11-.55.12-.12.27-.3.4-.46.13-.16.17-.27.26-.46.1-.18.05-.35-.02-.5-.07-.14-.9-2.17-1.24-2.98-.33-.8-.67-.8-.9-.8h-.77c-.26 0-.7.1-1.06.5-.36.4-1.4 1.36-1.4 3.32 0 1.96 1.43 3.85 1.63 4.12.2.26 2.8 4.27 6.8 5.98.95.4 1.68.64 2.26.82.95.3 1.8.26 2.48.16.75-.11 2.36-.96 2.7-1.9.32-.93.32-1.73.22-1.9-.1-.16-.37-.26-.77-.47z"/></svg>`;
+      waLink.innerHTML = `${waIcon} ${r.phone} (WhatsApp)`;
+      topInfo.appendChild(waLink);
+    } else {
+      const missing = document.createElement("div");
+      missing.className = "wa-missing";
+      missing.textContent = "No phone number found";
+      topInfo.appendChild(missing);
+    }
+    card.appendChild(topInfo);
+
+    const media = document.createElement("div");
+    media.className = "media";
+    if (!r.media_files || r.media_files.length === 0) {
+        media.innerHTML = '<div class="no-media">No image found</div>';
+    } else {
+        const slides = r.media_files.map((src, index) => {
+          const finalSrc = src + `?t=${new Date().getTime()}`;
+          const slide = document.createElement("div");
+          slide.className = "gallery-slide";
+          slide.hidden = index !== 0;
+
+          if (/\.(mp4|mov)$/i.test(src)) {
+            const video = document.createElement("video");
+            video.src = finalSrc;
+            video.controls = true;
+            video.preload = "metadata";
+            slide.appendChild(video);
+          } else {
+            const imageButton = document.createElement("button");
+            imageButton.type = "button";
+            imageButton.className = "gallery-image-button";
+            imageButton.setAttribute("aria-label", `Open image ${index + 1} of ${r.media_files.length} in fullscreen gallery`);
+            imageButton.addEventListener("click", () => openFullscreenGallery(galleryItems, galleryOffset + index));
+            const img = document.createElement("img");
+            img.alt = `Post image ${index + 1} of ${r.media_files.length}`;
+            img.onerror = () => {
+              const error = document.createElement("div");
+              error.className = "no-media";
+              error.textContent = "Image could not be loaded.";
+              img.replaceWith(error);
+              imageButton.disabled = true;
+            };
+            if (index === 0) {
+              img.src = finalSrc;
+            } else {
+              img.dataset.src = finalSrc;
+            }
+            imageButton.appendChild(img);
+            slide.appendChild(imageButton);
+          }
+          media.appendChild(slide);
+          return slide;
+        });
+
+        if (slides.length > 1) {
+          let currentSlide = 0;
+          const counter = document.createElement("span");
+          counter.className = "gallery-count";
+          counter.setAttribute("aria-live", "polite");
+
+          const showSlide = (nextIndex) => {
+            currentSlide = (nextIndex + slides.length) % slides.length;
+            slides.forEach((slide, index) => {
+              slide.hidden = index !== currentSlide;
+              const video = slide.querySelector("video");
+              if (slide.hidden && video) video.pause();
+              const image = slide.querySelector("img[data-src]");
+              if (!slide.hidden && image) {
+                image.src = image.dataset.src;
+                delete image.dataset.src;
+              }
+            });
+            counter.textContent = `${currentSlide + 1} / ${slides.length}`;
+          };
+
+          const previous = document.createElement("button");
+          previous.className = "gallery-arrow gallery-prev";
+          previous.type = "button";
+          previous.setAttribute("aria-label", "Previous image");
+          previous.textContent = "‹";
+          previous.addEventListener("click", () => showSlide(currentSlide - 1));
+
+          const next = document.createElement("button");
+          next.className = "gallery-arrow gallery-next";
+          next.type = "button";
+          next.setAttribute("aria-label", "Next image");
+          next.textContent = "›";
+          next.addEventListener("click", () => showSlide(currentSlide + 1));
+
+          media.append(previous, next, counter);
+          showSlide(0);
+        }
+    }
+    card.appendChild(media);
+
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    meta.innerHTML = `
+      <div class="user">@${esc(r.username)}</div>
+      <div class="date">${esc(r.date)}</div>
+      <div class="caption">${esc(r.caption)}</div>
+    `;
+    if (r.url) {
+      const link = document.createElement("a");
+      link.className = "link";
+      link.href = r.url;
+      link.target = "_blank";
+      link.rel = "noopener";
+      link.textContent = "Open on Instagram";
+      meta.appendChild(link);
+    } else {
+      const unavailable = document.createElement("span");
+      unavailable.className = "filter-note";
+      unavailable.textContent = "Instagram link unavailable for this saved post.";
+      meta.appendChild(unavailable);
+    }
+    meta.appendChild(buildDealPanel(r));
+    card.appendChild(meta);
+    return card;
+  }
+
+  function renderAll(results) {
+    const processed = results.map(r => ({
+      ...r,
+      price: extractPrice(r.caption),
+      phone: extractPhone(r.caption)
+    }));
+
+    const invalidPrice = !priceMin.validity.valid || !priceMax.validity.valid;
+    const reversedPrice = minimumPrice !== null && maximumPrice !== null && minimumPrice > maximumPrice;
+    priceFilterError.hidden = !invalidPrice && !reversedPrice;
+    priceFilterError.textContent = invalidPrice ? "Enter a non-negative price." :
+      reversedPrice ? "Minimum price cannot exceed maximum price." : "";
+    const text = filterText.value.trim().toLocaleLowerCase();
+    const excluded = filterExclude.value.split(/[,،]/).map(term => term.trim().toLocaleLowerCase()).filter(Boolean);
+    const filtered = processed.filter(result => {
+      if (invalidPrice || reversedPrice) return false;
+      const searchable = [result.caption, result.username].map(value => (value || "").toLocaleLowerCase());
+      if (text && !searchable.some(value => value.includes(text))) return false;
+      if (excluded.some(term => searchable.some(value => value.includes(term)))) return false;
+      const dateMatch = (result.date || "").match(/^(\d{4}-\d{2}-\d{2})/) ||
+        (result.shortcode || "").match(/^(\d{4}-\d{2}-\d{2})_\d{2}-\d{2}-\d{2}_UTC$/);
+      const date = dateMatch ? dateMatch[1] : null;
+      if ((dateFrom.value || dateTo.value) && !date) return false;
+      if (dateFrom.value && date < dateFrom.value) return false;
+      if (dateTo.value && date > dateTo.value) return false;
+      if ((minimumPrice !== null || maximumPrice !== null) && result.price === null) return false;
+      if (minimumPrice !== null && result.price < minimumPrice) return false;
+      if (maximumPrice !== null && result.price > maximumPrice) return false;
+      return true;
+    });
+
+    filterCount.textContent = `Showing ${filtered.length} of ${results.length} posts`;
+    if (!results.length) return;
+    root.innerHTML = "";
+    if (!filtered.length) {
+      root.innerHTML = invalidPrice || reversedPrice
+        ? '<div class="empty">Correct the price range to show results.</div>'
+        : '<div class="empty">No posts match the current filters.</div>';
+      return;
+    }
+
+    const grid = document.createElement("div");
+    grid.className = "grid";
+    const galleryItems = filtered.flatMap(r =>
+      (r.media_files || []).map(src => ({src, username: r.username}))
+    );
+    let galleryOffset = 0;
+    filtered.forEach(r => {
+      grid.appendChild(buildCard(r, galleryItems, galleryOffset));
+      galleryOffset += (r.media_files || []).length;
+    });
+    root.appendChild(grid);
+  }
+
+
+  loadPastSearches();
+  loadDefaultAccounts();
+  pollServer();
+</script>
+</body>
+</html>
