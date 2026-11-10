@@ -55,3 +55,4 @@ electronics.empires_bh
 gpumax
 haraj.center_bh
 ps_deals_bh
+playstation_5bh
