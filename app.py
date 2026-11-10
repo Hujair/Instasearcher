@@ -47,6 +47,20 @@ def git_command(*args, check=True):
         raise UpdateError("Git could not complete the update check. Check the repository and connection.")
     return result
 
+@app.route('/api/version')
+def app_version():
+    try:
+        root = git_command("rev-parse", "--show-toplevel").stdout.strip()
+        if os.path.normcase(os.path.realpath(root)) != os.path.normcase(os.path.realpath(BASE_DIR)):
+            raise UpdateError("The app is not installed in its own Git repository.")
+        commit = git_command("rev-parse", "--verify", "HEAD").stdout.strip()
+        if not re.fullmatch(r"[0-9a-f]{40,64}", commit):
+            raise UpdateError("Could not identify the installed Git commit.")
+        modified = bool(git_command("status", "--porcelain", "--untracked-files=no").stdout.strip())
+        return jsonify({"commit": commit[:12], "modified": modified})
+    except UpdateError as error:
+        return jsonify({"error": str(error)}), 503
+
 def check_for_update():
     root = git_command("rev-parse", "--show-toplevel").stdout.strip()
     if os.path.normcase(os.path.realpath(root)) != os.path.normcase(os.path.realpath(BASE_DIR)):
@@ -139,8 +153,8 @@ def analyze_deal():
     caption = data.get("caption")
     if not key:
         return jsonify({"error": "Enter a Gemini API key first."}), 400
-    if not re.fullmatch(r"[A-Za-z0-9_-]{1,256}", key):
-        return jsonify({"error": "The Gemini API key contains invalid characters."}), 400
+    if len(key) > 4096 or not key.isascii() or any(ord(char) < 33 or ord(char) > 126 for char in key):
+        return jsonify({"error": "The API key contains whitespace or unsupported characters. Copy only the key from Google AI Studio."}), 400
     if not isinstance(caption, str) or not caption.strip() or len(caption) > 10000:
         return jsonify({"error": "The post description must be between 1 and 10,000 characters."}), 400
     schema = {

@@ -4,6 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Instagram Search Web App</title>
+<script>
+  try {
+    if (localStorage.getItem("insta-searcher-theme") === "light") {
+      document.documentElement.dataset.theme = "light";
+    }
+  } catch (error) {
+    console.warn("Could not restore theme preference", error);
+  }
+</script>
 <style>
   :root {
     color-scheme: dark;
@@ -55,6 +64,9 @@
   .update-status { color: var(--muted); font-size: 12px; }
   .update-button { padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; background: rgba(156,123,255,.14); color: var(--txt); cursor: pointer; font-size: 12px; }
   .update-button:disabled { opacity: .5; cursor: not-allowed; }
+  .theme-toggle { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; }
+  .theme-toggle svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .theme-toggle svg[hidden] { display: none; }
   header h1 { margin: 0; font-size: 21px; font-weight: 750; letter-spacing: -.045em; }
   header h1::before {
     content: "";
@@ -399,6 +411,53 @@
     .workspace { grid-template-columns: minmax(0, 1fr); padding: 16px; }
     .sidebar .account-source .field, .sidebar .account-source .field-file, .sidebar .search-options .field, .sidebar .filter-field { flex: 1 1 calc(50% - 10px); }
   }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #f3f5fb;
+    --surface: #fff;
+    --card: #fff;
+    --txt: #20283a;
+    --muted: #59667b;
+    --accent: #6543d5;
+    --accent-bright: #5836c5;
+    --wa: #116c49;
+    --danger: #b82e45;
+    --line: rgba(57, 68, 95, .18);
+  }
+  [data-theme="light"] body {
+    background: radial-gradient(ellipse at 12% -10%, rgba(114,81,239,.1), transparent 34rem),
+      radial-gradient(ellipse at 95% 2%, rgba(52,124,208,.08), transparent 30rem), var(--bg);
+  }
+  [data-theme="light"] header { background: rgba(249,250,255,.92); }
+  [data-theme="light"] .sidebar, [data-theme="light"] .filters { background: rgba(255,255,255,.88); }
+  [data-theme="light"] .sidebar .filters { background: none; }
+  [data-theme="light"] .search-bar, [data-theme="light"] .card { background: #fff; box-shadow: 0 10px 28px rgba(40,50,80,.08); }
+  [data-theme="light"] .empty { background: rgba(255,255,255,.8); }
+  [data-theme="light"] .past-btn, [data-theme="light"] .file-clear, [data-theme="light"] .file-default { color: #39445b; background: #fff; }
+  [data-theme="light"] .past-btn:hover, [data-theme="light"] .file-clear:hover, [data-theme="light"] .file-default:hover { color: #4930a3; }
+  [data-theme="light"] .past-delete { color: #a9283e; background: #fff1f2; }
+  [data-theme="light"] .past-delete:hover { color: #7c1526; }
+  [data-theme="light"] .field-label { color: #4b5870; }
+  [data-theme="light"] .search-bar input[type="text"], [data-theme="light"] .sidebar input[type="text"],
+  [data-theme="light"] .sidebar input[type="number"], [data-theme="light"] .sidebar select,
+  [data-theme="light"] .sidebar input[type="date"], [data-theme="light"] .deal-settings input,
+  [data-theme="light"] .filter-reset { background: #fff; color: var(--txt); }
+  [data-theme="light"] .sidebar input:disabled, [data-theme="light"] .sidebar select:disabled { background: #edf0f5; color: #647086; opacity: 1; }
+  [data-theme="light"] .file-upload { color: #5034a9; }
+  [data-theme="light"] #file-label[style*="color"] { color: #116c49 !important; }
+  [data-theme="light"] .settings-warning, [data-theme="light"] .filter-error { color: #a43725; }
+  [data-theme="light"] .caption, [data-theme="light"] .deal-result { color: #39445b; }
+  [data-theme="light"] .user, [data-theme="light"] .link, [data-theme="light"] .deal-sources a { color: #5939bf; }
+  [data-theme="light"] .link:hover { color: #382080; }
+  [data-theme="light"] .price-badge, [data-theme="light"] .deal-rating.great { color: #116c49; }
+  [data-theme="light"] .price-badge.no-price { color: var(--muted); background: #f5f6fa; }
+  [data-theme="light"] .deal-rating { color: #5134b0; }
+  [data-theme="light"] .deal-rating.good { color: #294ea0; }
+  [data-theme="light"] .deal-rating.bad { color: #a4283b; }
+  @media (max-width: 700px) {
+    .header-top { flex-wrap: wrap; }
+    .update-controls { flex: 1 1 100%; justify-content: flex-start; margin-left: 0; }
+  }
 </style>
 </head>
 <body>
@@ -407,10 +466,16 @@
     <h1>Insta Searcher</h1>
     <div class="update-controls">
       <span class="update-status" id="update-status" role="status">Checking for updates...</span>
+      <span class="update-status" id="app-version" title="Installed Git commit">Version: checking...</span>
       <button class="update-button" id="check-update" type="button">Check updates</button>
       <button class="update-button" id="apply-update" type="button" hidden>Update</button>
+      <button class="update-button theme-toggle" id="theme-toggle" type="button" aria-label="Switch to light mode" title="Switch to light mode" aria-pressed="false">
+        <svg id="theme-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>
+        <svg id="theme-moon" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5 8.5 8.5 0 1 0 20.5 14.2Z"/></svg>
+      </button>
     </div>
   </div>
+  <p class="settings-warning" id="theme-warning" role="status" hidden></p>
   
   <div class="past-searches" id="past-searches-container">
     <span>Past Searches:</span>
@@ -479,13 +544,6 @@
         <input type="number" id="inp-threads" value="3" min="1" max="10" title="Parallel search threads (1-10)">
       </div>
     </div>
-    <section class="deal-settings" aria-label="Deal analysis">
-      <h2>Deal analysis</h2>
-      <label class="field-label" for="gemini-key">Gemini API key</label>
-      <input id="gemini-key" type="password" autocomplete="off" spellcheck="false" placeholder="Enter your Gemini API key">
-      <p class="filter-note">The key is saved unencrypted in this browser on this device. Clear the field to remove it. Analyze sends the post description to Google; Google Search and Gemini charges may apply. Common contact details are removed, but review descriptions for sensitive information.</p>
-      <p class="settings-warning" id="gemini-key-warning" role="status" hidden></p>
-    </section>
     <section class="filters" aria-label="Filter results">
   <div class="filter-intro">
     <h2>Filter results</h2>
@@ -517,6 +575,13 @@
   <button class="filter-reset" id="filter-reset" type="button">Reset filters</button>
   <p class="filter-error" id="price-filter-error" role="status" hidden></p>
   <p class="filter-note">Filters apply to displayed results. Posts without a recognized price or date are excluded when that filter is active.</p>
+    </section>
+    <section class="deal-settings" aria-label="Deal analysis">
+      <h2>Deal analysis</h2>
+      <label class="field-label" for="gemini-key">Gemini API key</label>
+      <input id="gemini-key" type="password" autocomplete="off" spellcheck="false" placeholder="Enter your Gemini API key">
+      <p class="filter-note">The key is saved unencrypted in this browser on this device. Clear the field to remove it. Analyze sends the post description to Google; Google Search and Gemini charges may apply. Common contact details are removed, but review descriptions for sensitive information.</p>
+      <p class="settings-warning" id="gemini-key-warning" role="status" hidden></p>
     </section>
   </aside>
 
@@ -579,11 +644,55 @@
   const priceMax = document.getElementById("filter-price-max");
   const priceFilterError = document.getElementById("price-filter-error");
   const filterCount = document.getElementById("filter-count");
+  const themeToggle = document.getElementById("theme-toggle");
+  const themeWarning = document.getElementById("theme-warning");
+  function updateThemeToggle() {
+    const light = document.documentElement.dataset.theme === "light";
+    const label = light ? "Switch to dark mode" : "Switch to light mode";
+    document.getElementById("theme-sun").toggleAttribute("hidden", light);
+    document.getElementById("theme-moon").toggleAttribute("hidden", !light);
+    themeToggle.setAttribute("aria-label", label);
+    themeToggle.title = label;
+    themeToggle.setAttribute("aria-pressed", String(light));
+  }
+  themeToggle.addEventListener("click", () => {
+    const light = document.documentElement.dataset.theme !== "light";
+    document.documentElement.dataset.theme = light ? "light" : "dark";
+    updateThemeToggle();
+    try {
+      localStorage.setItem("insta-searcher-theme", light ? "light" : "dark");
+      themeWarning.hidden = true;
+    } catch (error) {
+      themeWarning.textContent = "Could not save theme preference; it may be lost on refresh.";
+      themeWarning.hidden = false;
+    }
+  });
+  window.addEventListener("storage", event => {
+    if (event.key === "insta-searcher-theme") {
+      document.documentElement.dataset.theme = event.newValue === "light" ? "light" : "dark";
+      updateThemeToggle();
+    }
+  });
+  updateThemeToggle();
   const updateStatus = document.getElementById("update-status");
+  const appVersion = document.getElementById("app-version");
   const checkUpdateButton = document.getElementById("check-update");
   const applyUpdateButton = document.getElementById("apply-update");
   let updateBusy = false;
   let restartRequired = false;
+
+  async function loadVersion() {
+    try {
+      const response = await fetch('/api/version', {cache: 'no-store'});
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not read the Git version.");
+      appVersion.textContent = `Version: ${data.commit}${data.modified ? " (modified)" : ""}`;
+      appVersion.title = data.modified ? "Installed Git commit; tracked files have local changes" : "Installed Git commit";
+    } catch (error) {
+      appVersion.textContent = "Version: unavailable";
+      appVersion.title = error.message || "Could not read the Git version.";
+    }
+  }
 
   async function checkUpdates() {
     if (updateBusy || restartRequired) return;
@@ -625,6 +734,7 @@
       updateStatus.textContent = data.message;
       applyUpdateButton.hidden = true;
       restartRequired = data.updated;
+      if (data.updated) await loadVersion();
     } catch (error) {
       updateStatus.textContent = error.message || "Update failed.";
     } finally {
@@ -1433,6 +1543,7 @@
   loadDefaultAccounts();
   pollServer();
   checkUpdates();
+  loadVersion();
 </script>
 </body>
 </html>
