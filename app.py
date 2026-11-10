@@ -1,8 +1,12 @@
 from flask import Flask, request, jsonify, send_from_directory
 import instaloader
 from itertools import islice
+from contextlib import contextmanager
+import errno
 import os
 import re
+import sys
+import tempfile
 import threading
 import time
 import glob
@@ -587,5 +591,45 @@ def serve_images(filename):
         return send_from_directory(directory, file)
     return "Invalid path", 400
 
+class ServerAlreadyRunning(Exception):
+    pass
+
+
+@contextmanager
+def server_instance_lock():
+    lock_path = os.path.join(tempfile.gettempdir(), "insta-searcher-server.lock")
+    with open(lock_path, "a+b") as lock_file:
+        try:
+            if os.name == "nt":
+                import msvcrt
+                lock_file.seek(0)
+                msvcrt.locking(lock_file.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError as error:
+            if error.errno in (errno.EACCES, errno.EAGAIN, errno.EDEADLK):
+                raise ServerAlreadyRunning from error
+            raise
+        try:
+            yield
+        finally:
+            if os.name == "nt":
+                lock_file.seek(0)
+                msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+
+
+def main():
+    try:
+        with server_instance_lock():
+            app.run(port=5000, debug=True, use_reloader=False)
+    except ServerAlreadyRunning:
+        print("Insta Searcher is already running at http://127.0.0.1:5000/.", file=sys.stderr)
+        return 1
+    return 0
+
+
 if __name__ == '__main__':
-    app.run(port=5000, debug=True, use_reloader=False)
+    sys.exit(main())

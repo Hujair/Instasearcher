@@ -1,5 +1,11 @@
 # Insta Searcher
 
+## Running
+
+Run `python app.py` and open http://127.0.0.1:5000/. Only one instance can run
+per user; another launch exits without stopping the running server. Stop the
+running server before restarting it to apply changes or updates.
+
 ## Updates
 
 Run the app from a Git clone with Git installed and a configured upstream branch.
