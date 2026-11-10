@@ -51,6 +51,10 @@
   }
   .header-top, .past-searches, .search-bar { width: 100%; max-width: 1440px; margin-inline: auto; }
   .header-top { display: flex; align-items: center; gap: 12px; }
+  .update-controls { margin-left: auto; display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+  .update-status { color: var(--muted); font-size: 12px; }
+  .update-button { padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; background: rgba(156,123,255,.14); color: var(--txt); cursor: pointer; font-size: 12px; }
+  .update-button:disabled { opacity: .5; cursor: not-allowed; }
   header h1 { margin: 0; font-size: 21px; font-weight: 750; letter-spacing: -.045em; }
   header h1::before {
     content: "";
@@ -401,6 +405,11 @@
 <header>
   <div class="header-top">
     <h1>Insta Searcher</h1>
+    <div class="update-controls">
+      <span class="update-status" id="update-status" role="status">Checking for updates...</span>
+      <button class="update-button" id="check-update" type="button">Check updates</button>
+      <button class="update-button" id="apply-update" type="button" hidden>Update</button>
+    </div>
   </div>
   
   <div class="past-searches" id="past-searches-container">
@@ -570,6 +579,62 @@
   const priceMax = document.getElementById("filter-price-max");
   const priceFilterError = document.getElementById("price-filter-error");
   const filterCount = document.getElementById("filter-count");
+  const updateStatus = document.getElementById("update-status");
+  const checkUpdateButton = document.getElementById("check-update");
+  const applyUpdateButton = document.getElementById("apply-update");
+  let updateBusy = false;
+  let restartRequired = false;
+
+  async function checkUpdates() {
+    if (updateBusy || restartRequired) return;
+    updateBusy = true;
+    checkUpdateButton.disabled = true;
+    applyUpdateButton.hidden = true;
+    updateStatus.textContent = "Checking for updates...";
+    try {
+      const response = await fetch('/api/update/status', {cache: 'no-store'});
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Update check failed.");
+      if (data.state === "available") {
+        updateStatus.textContent = `Update available (${data.latest}).`;
+        applyUpdateButton.hidden = false;
+      } else if (data.state === "diverged") {
+        updateStatus.textContent = "Local branch is ahead or diverged. Update manually.";
+      } else {
+        updateStatus.textContent = "Up to date.";
+      }
+    } catch (error) {
+      updateStatus.textContent = error.message || "Update check failed.";
+    } finally {
+      updateBusy = false;
+      checkUpdateButton.disabled = false;
+    }
+  }
+
+  async function applyUpdate() {
+    if (updateBusy || restartRequired) return;
+    if (!confirm("Install the update? Restart the app afterward to apply it.")) return;
+    updateBusy = true;
+    checkUpdateButton.disabled = true;
+    applyUpdateButton.disabled = true;
+    updateStatus.textContent = "Installing update...";
+    try {
+      const response = await fetch('/api/update', {method: 'POST'});
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Update failed.");
+      updateStatus.textContent = data.message;
+      applyUpdateButton.hidden = true;
+      restartRequired = data.updated;
+    } catch (error) {
+      updateStatus.textContent = error.message || "Update failed.";
+    } finally {
+      updateBusy = false;
+      checkUpdateButton.disabled = restartRequired;
+      applyUpdateButton.disabled = false;
+    }
+  }
+  checkUpdateButton.addEventListener("click", checkUpdates);
+  applyUpdateButton.addEventListener("click", applyUpdate);
   const geminiKey = document.getElementById("gemini-key");
   const geminiKeyWarning = document.getElementById("gemini-key-warning");
   const dealAnalyses = new Map();
@@ -1367,6 +1432,7 @@
   loadPastSearches();
   loadDefaultAccounts();
   pollServer();
+  checkUpdates();
 </script>
 </body>
 </html>

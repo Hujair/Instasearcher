@@ -9,6 +9,7 @@ import glob
 import json
 import shutil
 import stat
+import subprocess
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 from urllib.parse import urlparse
@@ -24,6 +25,106 @@ collected_results = []
 thread_lock = threading.Lock()
 search_lock = threading.Lock()
 current_results_folder = None
+update_lock = threading.Lock()
+
+class UpdateError(Exception):
+    pass
+
+def git_command(*args, check=True):
+    env = os.environ.copy()
+    env["GIT_TERMINAL_PROMPT"] = "0"
+    env["GIT_OPTIONAL_LOCKS"] = "0"
+    try:
+        result = subprocess.run(
+            ["git", "-C", BASE_DIR, *args], capture_output=True,
+            text=True, encoding="utf-8", errors="replace", timeout=45, env=env,
+        )
+    except FileNotFoundError as error:
+        raise UpdateError("Git is not installed or is not available on PATH.") from error
+    except subprocess.TimeoutExpired as error:
+        raise UpdateError("Git timed out. Check your connection and try again.") from error
+    if check and result.returncode:
+        raise UpdateError("Git could not complete the update check. Check the repository and connection.")
+    return result
+
+def check_for_update():
+    root = git_command("rev-parse", "--show-toplevel").stdout.strip()
+    if os.path.normcase(os.path.realpath(root)) != os.path.normcase(os.path.realpath(BASE_DIR)):
+        raise UpdateError("The app must be installed in its own Git repository.")
+    branch_result = git_command("symbolic-ref", "--quiet", "--short", "HEAD", check=False)
+    if branch_result.returncode:
+        raise UpdateError("Updates require a checked-out branch, not a detached HEAD.")
+    branch = branch_result.stdout.strip()
+    remote_result = git_command("config", "--get", f"branch.{branch}.remote", check=False)
+    merge_result = git_command("config", "--get", f"branch.{branch}.merge", check=False)
+    remote = remote_result.stdout.strip()
+    upstream = merge_result.stdout.strip()
+    if remote_result.returncode or merge_result.returncode or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", remote) or not upstream.startswith("refs/heads/"):
+        raise UpdateError("Configure a remote tracking branch before checking for updates.")
+    git_command("check-ref-format", upstream)
+    remote_head = git_command("ls-remote", "--exit-code", "--refs", remote, upstream)
+    entries = [line.split("\t") for line in remote_head.stdout.splitlines()]
+    if len(entries) != 1 or len(entries[0]) != 2 or entries[0][1] != upstream or not re.fullmatch(r"[0-9a-f]{40,64}", entries[0][0]):
+        raise UpdateError("The upstream branch could not be identified.")
+    remote_commit = entries[0][0]
+    git_command("fetch", "--no-tags", "--no-write-fetch-head", "--no-recurse-submodules",
+                remote, f"+{upstream}:refs/insta-searcher/update")
+    fetched = git_command("rev-parse", "refs/insta-searcher/update").stdout.strip()
+    if fetched != remote_commit:
+        raise UpdateError("The remote changed during the update check. Please try again.")
+    local_commit = git_command("rev-parse", "HEAD").stdout.strip()
+    if local_commit == fetched:
+        return "current", local_commit, fetched, branch
+    ancestor = git_command("merge-base", "--is-ancestor", local_commit, fetched, check=False)
+    if ancestor.returncode == 0:
+        return "available", local_commit, fetched, branch
+    if ancestor.returncode == 1:
+        return "diverged", local_commit, fetched, branch
+    raise UpdateError("Could not compare local and remote commits.")
+
+@app.route('/api/update/status')
+def update_status():
+    if not update_lock.acquire(blocking=False):
+        return jsonify({"error": "An update is already in progress."}), 409
+    try:
+        state, local_commit, remote_commit, _ = check_for_update()
+        return jsonify({"state": state, "available": state == "available",
+                        "current": local_commit[:12], "latest": remote_commit[:12]})
+    except UpdateError as error:
+        return jsonify({"error": str(error)}), 503
+    finally:
+        update_lock.release()
+
+@app.route('/api/update', methods=['POST'])
+def apply_update():
+    if request.headers.get("Origin") != request.host_url.rstrip("/"):
+        return jsonify({"error": "Updates must be requested from this app."}), 403
+    if not update_lock.acquire(blocking=False):
+        return jsonify({"error": "An update is already in progress."}), 409
+    try:
+        with search_lock:
+            if search_status["running"]:
+                return jsonify({"error": "Stop the search before updating."}), 409
+            if git_command("status", "--porcelain", "--untracked-files=no").stdout.strip():
+                return jsonify({"error": "Tracked files have local changes. Commit or save them before updating."}), 409
+            state, local_commit, fetched, branch = check_for_update()
+            if state == "current":
+                return jsonify({"updated": False, "message": "Already up to date."})
+            if state == "diverged":
+                return jsonify({"error": "Local and remote commits have diverged or the local branch is ahead. Update manually."}), 409
+            if git_command("status", "--porcelain", "--untracked-files=no").stdout.strip():
+                return jsonify({"error": "Tracked files changed during the update. Update cancelled."}), 409
+            if (git_command("rev-parse", "HEAD").stdout.strip() != local_commit
+                    or git_command("symbolic-ref", "--quiet", "--short", "HEAD").stdout.strip() != branch):
+                return jsonify({"error": "The checked-out branch changed during the update. Please try again."}), 409
+            merged = git_command("merge", "--ff-only", "--no-overwrite-ignore", fetched, check=False)
+            if merged.returncode:
+                return jsonify({"error": "Update blocked. Local or ignored files may conflict with the update; resolve them manually."}), 409
+            return jsonify({"updated": True, "message": "Update installed. Restart the app to use it."})
+    except UpdateError as error:
+        return jsonify({"error": str(error)}), 503
+    finally:
+        update_lock.release()
 
 class NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
@@ -466,4 +567,4 @@ def serve_images(filename):
     return "Invalid path", 400
 
 if __name__ == '__main__':
-    app.run(port=5000, debug=True)
+    app.run(port=5000, debug=True, use_reloader=False)
