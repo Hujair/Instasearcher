@@ -56,8 +56,15 @@ def app_version():
         commit = git_command("rev-parse", "--verify", "HEAD").stdout.strip()
         if not re.fullmatch(r"[0-9a-f]{40,64}", commit):
             raise UpdateError("Could not identify the installed Git commit.")
+        subjects = git_command("log", "--format=%s", commit).stdout.splitlines()
+        version = None
+        for subject in subjects:
+            match = re.match(r"^v?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?(?=$|[\s:])", subject)
+            if match:
+                version = match.group()
+                break
         modified = bool(git_command("status", "--porcelain", "--untracked-files=no").stdout.strip())
-        return jsonify({"commit": commit[:12], "modified": modified})
+        return jsonify({"version": version, "commit": commit[:12], "modified": modified})
     except UpdateError as error:
         return jsonify({"error": str(error)}), 503
 

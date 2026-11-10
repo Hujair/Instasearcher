@@ -466,7 +466,7 @@
     <h1>Insta Searcher</h1>
     <div class="update-controls">
       <span class="update-status" id="update-status" role="status">Checking for updates...</span>
-      <span class="update-status" id="app-version" title="Installed Git commit">Version: checking...</span>
+      <span class="update-status" id="app-version" title="Installed version from Git history">Version: checking...</span>
       <button class="update-button" id="check-update" type="button">Check updates</button>
       <button class="update-button" id="apply-update" type="button" hidden>Update</button>
       <button class="update-button theme-toggle" id="theme-toggle" type="button" aria-label="Switch to light mode" title="Switch to light mode" aria-pressed="false">
@@ -686,8 +686,8 @@
       const response = await fetch('/api/version', {cache: 'no-store'});
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Could not read the Git version.");
-      appVersion.textContent = `Version: ${data.commit}${data.modified ? " (modified)" : ""}`;
-      appVersion.title = data.modified ? "Installed Git commit; tracked files have local changes" : "Installed Git commit";
+      appVersion.textContent = `Version: ${data.version || data.commit}${data.modified ? " (modified)" : ""}`;
+      appVersion.title = `Installed Git commit: ${data.commit}${data.modified ? "; tracked files have local changes" : ""}`;
     } catch (error) {
       appVersion.textContent = "Version: unavailable";
       appVersion.title = error.message || "Could not read the Git version.";
