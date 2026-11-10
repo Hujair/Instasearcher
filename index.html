@@ -62,6 +62,8 @@
   .header-top { display: flex; align-items: center; gap: 12px; }
   .update-controls { margin-left: auto; display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
   .update-status { color: var(--muted); font-size: 12px; }
+  a.update-status { text-decoration: underline; text-underline-offset: 3px; }
+  a.update-status:hover { color: var(--txt); }
   .update-button { padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; background: rgba(156,123,255,.14); color: var(--txt); cursor: pointer; font-size: 12px; }
   .update-button:disabled { opacity: .5; cursor: not-allowed; }
   .theme-toggle { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; }
@@ -466,7 +468,7 @@
     <h1>Insta Searcher</h1>
     <div class="update-controls">
       <span class="update-status" id="update-status" role="status">Checking for updates...</span>
-      <span class="update-status" id="app-version" title="Installed version from Git history">Version: checking...</span>
+      <a class="update-status" id="app-version" href="https://github.com/Hujair/Instasearcher" target="_blank" rel="noopener noreferrer" title="Installed version from Git history">Version: checking...</a>
       <button class="update-button" id="check-update" type="button">Check updates</button>
       <button class="update-button" id="apply-update" type="button" hidden>Update</button>
       <button class="update-button theme-toggle" id="theme-toggle" type="button" aria-label="Switch to light mode" title="Switch to light mode" aria-pressed="false">
